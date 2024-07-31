@@ -1,0 +1,36 @@
+#map {
+  width: 80vw;
+  height: 600px;
+  margin-left: 70px;
+}
+.title {
+  text-align: center;
+  color: rgb(94, 99, 126);
+}
+#mainContainer {
+  /* height: 1000 vh; */
+  width: 100%;
+  /* background-color: blue; */
+}
+#center_split {
+  display: flex;
+  width: 100%;
+}
+#analyzerContainer {
+  display: none !important;
+  background-color: antiquewhite;
+  margin-left: 20px;
+}
+.analyzerTitle {
+  font-size: 20px;
+  font-weight: bold;
+}
+.analyzerButtons {
+  display: block;
+}
+#analyzerButtons {
+  /* display: flex; */
+}
+.button_1 {
+  margin: 70px 0 10px 0;
+}
