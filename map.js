@@ -13,25 +13,28 @@ d3.json("data.json").then(function(data) {
   const height = 700 - margin.top - margin.bottom;
 
   // This handles the x and y of the charts based on the JSON data
-  const x = d3.scaleBand().range([0, width]).padding(0.1);
-  const y = d3.scaleLinear().range([height, 0]);
+  const xChart = d3.scaleBand().range([0, width]).padding(0.1);
+  const yChart = d3.scaleLinear().range([height, 0]);
 
   // Set color to red and blue, grey for "other"
   //this handles our type colors.
-  const color = d3.scaleOrdinal()
+  const partyColor = d3.scaleOrdinal()
     .domain(["democrat", "republican", "other"])
     .range(["blue", "red", "grey"]);
 
   //this section handles setting up the margins of our chart
   //also handles the background color.
-  const svg = d3.select("#chart").append("svg")
+  const buildChart = d3.select("#chart").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .style("background-color", "lightgrey") 
+    //appends a group element to our chart
     .append("g")
+    //handles translating our margins from earlier
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const tooltip = d3.select("body").append("div")
+  //this handles our hover text
+  const hoverContent = d3.select("body").append("div")
     .attr("class", "tooltip")
     .style("opacity", 0);
 
@@ -51,51 +54,56 @@ d3.json("data.json").then(function(data) {
         democrat: type === 'popular' ? voteData.democrat : delegateData.democrat,
         republican: type === 'popular' ? voteData.republican : delegateData.republican,
         other: type === 'popular' ? voteData.other : 0,
-        total: type === 'popular' ? total : delegateTotal
+        total: type === 'popular' ? total : delegateTotal,
+        popular: voteData 
       };
     });
 
-    x.domain(chartData.map(d => d.state));
-    y.domain([0, d3.max(chartData, d => d.total)]);
+    xChart.domain(chartData.map(d => d.state));
+    yChart.domain([0, d3.max(chartData, d => d.total)]);
 
-    //remove everything from the view when we switch views
-    svg.selectAll("*").remove();
+    //remove everything from the svg/view when we switch views
+    buildChart.selectAll("*").remove();
 
     // Section that handles gridlines on charts
-    svg.append("g")
+    buildChart.append("g")
       .attr("class", "grid")
       .attr("stroke", "white") 
-      .call(d3.axisLeft(y)
+      .call(d3.axisLeft(yChart)
         .ticks(10)
         .tickSize(-width)
         .tickFormat(""));
 
-     // Set up the stack layout
+
+      //this handles our bar chart stack
      const stack = d3.stack().keys(["democrat", "republican", "other"]);
      const stackedData = stack(chartData);
 
-     // Add bars to charts
-     svg
+     //add all of our data to our chart svg element
+     buildChart
        .selectAll("g.layer")
        .data(stackedData)
        .enter()
        .append("g")
        .attr("class", "layer")
-       .attr("fill", (d) => color(d.key))
+       .attr("fill", (d) => partyColor(d.key))
        .selectAll("rect")
        .data((d) => d)
        .enter()
        //append our rectangle to our graph
        .append("rect")
-       .attr("x", (d) => x(d.data.state))
-       .attr("y", (d) => y(d[1]))
-       .attr("height", (d) => y(d[0]) - y(d[1]))
-       .attr("width", x.bandwidth())
+       .attr("x", (d) => xChart(d.data.state))
+       //this handles stacking the bars based on the upper limit of stack
+       .attr("y", (d) => yChart(d[1]))
+       //sets height based on difference between bars
+       .attr("height", (d) => yChart(d[0]) - yChart(d[1]))
+       .attr("width", xChart.bandwidth())
        //create function to handle labels on hover
        .on("mouseover", function (event, d) {
+        //selects the parent node of the bar, and retrieves its data
          const key = d3.select(this.parentNode).datum().key;
-         tooltip.transition().duration(200).style("opacity", 0.9);
-         tooltip
+         hoverContent.transition().duration(200).style("opacity", 0.9);
+         hoverContent
            .html(
             //switch/ternary to handle showing our labels on different views
              `${type === "popular" ? "Vote Count" : "Delegate Count"}<br>${
@@ -105,23 +113,85 @@ d3.json("data.json").then(function(data) {
            .style("left", event.pageX + 5 + "px")
            .style("top", event.pageY - 28 + "px");
        })
-       //remove label on mouseout
+       //remove label on mouseout after 500 ms
        .on("mouseout", function () {
-         tooltip.transition().duration(500).style("opacity", 0);
+         hoverContent.transition().duration(500).style("opacity", 0);
+       })
+       // Add pie chart functionality for clicking
+       .on("click", function (event, d) {
+         if (type === "delegates") {
+           
+           const chartWindow = document.getElementById("pieChartModal");
+           chartWindow.style.display = "block";
+
+           // Remove existing pie chart if any
+           d3.select("#pieChart").selectAll("*").remove();
+
+           // Data for the pie chart based on popular vote
+           const pieData = [
+             { party: "Democrat", value: d.data.popular.democrat },
+             { party: "Republican", value: d.data.popular.republican },
+             { party: "Other", value: d.data.popular.other }
+           ];
+
+           //section below handles pie chart characteristics
+           const pieChart = d3.pie()
+           //sets the pie slice percentages
+             .value(d => d.value);
+
+           const piePiece = d3.arc()
+           //ensures there isn't a hole in the middle.
+             .innerRadius(0)
+             .outerRadius(200);
+
+           const pieSvg = d3.select("#pieChart")
+             .attr("width", 400)
+             .attr("height", 400)
+             .append("g")
+             .attr("transform", "translate(200,200)");
+
+           // add pie chart to screen
+           const piePieces = pieSvg.selectAll(".arc")
+             .data(pieChart(pieData))
+             .enter().append("g")
+             .attr("class", "arc");
+
+           piePieces.append("path")
+             .attr("d", piePiece)
+             .attr("fill", d => partyColor(d.data.party.toLowerCase()));
+
+           // handle adding labels to our chart
+           piePieces.append("text")
+           .attr("transform", d => {
+               const [x, y] = piePiece.centroid(d);
+               //use this to adjust labels in or out, > nubmer is out
+               const textCenteringPie = .9; 
+               return `translate(${x * textCenteringPie}, ${y * textCenteringPie})`;
+           })
+           //standard values for centering
+           .attr("dy", ".35em")
+           //anchor the text to the centroid of each piece for each arc.
+           .style("text-anchor", d => {
+               const [x, y] = piePiece.centroid(d);
+               return x >= 0 ? "start" : "end";
+           })
+           //append our text.
+           .text(d => `${d.data.party}: ${Math.round((d.data.value / d3.sum(pieData, d => d.value)) * 100)}%`);
+         }
        });
 
     // Section to add axis to charts
-    svg.append("g")
+    buildChart.append("g")
       .attr("class", "x-axis")
       .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x));
+      .call(d3.axisBottom(xChart));
 
-    svg.append("g")
+    buildChart.append("g")
       .attr("class", "y-axis")
-      .call(d3.axisLeft(y).ticks(10, "s"));
+      .call(d3.axisLeft(yChart).ticks(10, "s"));
 
     // Add the state x axis
-    svg.append("text")
+    buildChart.append("text")
       .attr("class", "x label")
       .attr("text-anchor", "end")
       .attr("x", width / 2 + margin.left)
@@ -129,24 +199,25 @@ d3.json("data.json").then(function(data) {
       .text("State");
 
     // Add a y axis label to the chart. Name depends on type
-    svg.append("text")
+    buildChart.append("text")
       .attr("class", "y label")
       .attr("text-anchor", "end")
       .attr("y", -margin.left + 20)
       .attr("x", -height / 2 + margin.top)
+      //standard values for text
       .attr("dy", ".75em")
       .attr("transform", "rotate(-90)")
       //ternary to handle different views
       .text(type === 'popular' ? "Popular Votes" : "Delegate Count");
 
     // Add a legend to the charts
-    const legend = svg.append("g")
+    const legend = buildChart.append("g")
       .attr("transform", `translate(${width - 60}, ${margin.top})`);
 
-    const keys = ["democrat", "republican", "other"];
+    const partyLineKeys = ["democrat", "republican", "other"];
     const legendSize = 20;
     legend.selectAll("rect")
-      .data(keys)
+      .data(partyLineKeys)
       .enter()
       .append("rect")
       // This is where you can adjust values of rectangles only
@@ -154,10 +225,10 @@ d3.json("data.json").then(function(data) {
       .attr("y", (d, i) => i * (legendSize + 13))
       .attr("width", legendSize)
       .attr("height", legendSize)
-      .attr("fill", d => color(d));
+      .attr("fill", d => partyColor(d));
 
     legend.selectAll("text")
-      .data(keys)
+      .data(partyLineKeys)
       .enter()
       .append("text")
       //here is handling the text location on the legend
@@ -177,3 +248,11 @@ d3.json("data.json").then(function(data) {
     updateChart('delegates');
   });
 });
+
+// Close modal when clicking outside of it
+window.onclick = function(event) {
+  const pieChartWindow = document.getElementById("pieChartModal");
+  if (event.target == pieChartWindow) {
+    pieChartWindow.style.display = "none";
+  }
+};

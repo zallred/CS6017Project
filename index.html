@@ -18,6 +18,47 @@
             text-align: center;
             margin-bottom: 5px;
         }
+        /* This creates the box to append our pie chart to */
+        .modal {
+            display: none;
+            position: fixed; 
+            z-index: 1;
+            padding-top: 100px; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%;
+            /* This allows scrolling */ 
+            overflow: auto; 
+            background-color: rgb(0,0,0); 
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            text-align: center;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -25,7 +66,21 @@
     <button id="showPopularVotesButton">Popular Vote</button>
     <button id="showDelegatesButton">Delegates</button>
     <div id="chart"></div>
+
+    <div id="pieChartModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="modal-title">Popular Vote Percentage</div>
+            <svg id="pieChart"></svg>
+        </div>
+    </div>
+
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="map.js"></script>
+    <script>
+        document.querySelector(".close").onclick = function() {
+            document.getElementById("pieChartModal").style.display = "none";
+        }
+    </script>
 </body>
 </html>
